@@ -1,103 +1,252 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { InfoIcon, SlidersHorizontal, FileUp } from "lucide-react"
+import { CostChart } from "@/components/cost-chart"
+import { InventorySimulation } from "@/components/inventory-simulation"
+import { ResultsSummary } from "@/components/results-summary"
+import { calculateEOQ, calculateReorderPoint, simulateInventory } from "@/lib/inventory-calculations"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { ExcelUploader } from "@/components/excel-uploader"
+
+export default function InventoryManagementApp() {
+  const [params, setParams] = useState({
+    dias: 365,
+    mu_d: 105,
+    sigma_d: 13.3,
+    C: 8000,
+    H: 1600, // 20% de C
+    S: 10000,
+    serviceLevel: 0.95,
+    L: 1,
+  })
+
+  const [results, setResults] = useState<any>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Actualizar resultados automáticamente cuando cambian los parámetros
+  useEffect(() => {
+    // Actualizar H cuando cambia C
+    const updatedH = params.C * 0.2
+
+    if (params.H !== updatedH) {
+      setParams((prev) => ({
+        ...prev,
+        H: updatedH,
+      }))
+      return // Evitar cálculos duplicados, ya que este cambio desencadenará otro useEffect
+    }
+
+    calculateResults()
+  }, [params])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setParams((prev) => ({
+      ...prev,
+      [name]: Number.parseFloat(value),
+    }))
+  }
+
+  const calculateResults = () => {
+    // Calcular EOQ
+    const D = params.mu_d * params.dias
+    const Q = calculateEOQ(D, params.S, params.H)
+
+    // Calcular punto de reorden
+    const Z = calculateZScore(params.serviceLevel)
+    const R = calculateReorderPoint(params.mu_d, params.L, params.sigma_d, Z)
+
+    // Simular inventario
+    const simulation = simulateInventory(params.dias, params.mu_d, params.sigma_d, Q, R)
+
+    setResults({
+      Q,
+      R,
+      D,
+      Z,
+      simulation,
+    })
+  }
+
+  const calculateZScore = (serviceLevel: number) => {
+    // Aproximación del Z-score para niveles de servicio comunes
+    const zScores: Record<string, number> = {
+      "0.90": 1.28,
+      "0.95": 1.65,
+      "0.98": 2.05,
+      "0.99": 2.33,
+    }
+
+    const key = serviceLevel.toString()
+    return zScores[key] || 1.65 // Default a 95% si no se encuentra
+  }
+
+  const handleExcelDataLoaded = (data: any) => {
+    // Actualizar los parámetros con los datos del Excel
+    setParams((prev) => ({
+      ...prev,
+      ...data,
+      // Asegurarse de que H se actualice en el siguiente useEffect
+    }))
+
+    // Cerrar el panel lateral si está abierto
+    setSheetOpen(false)
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gestión de Inventario - Modelo EOQ</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        <div className="flex gap-2">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <FileUp className="h-4 w-4" />
+                Cargar Excel
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Cargar datos desde Excel</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <ExcelUploader onDataLoaded={handleExcelDataLoaded} />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                Parámetros
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Configuración del Modelo</SheetTitle>
+              </SheetHeader>
+
+              <div className="space-y-4 mt-6">
+                <div>
+                  <Label htmlFor="dias">Días en el periodo</Label>
+                  <Input id="dias" name="dias" type="number" value={params.dias} onChange={handleInputChange} />
+                </div>
+
+                <div>
+                  <Label htmlFor="mu_d">Demanda diaria promedio</Label>
+                  <Input id="mu_d" name="mu_d" type="number" value={params.mu_d} onChange={handleInputChange} />
+                </div>
+
+                <div>
+                  <Label htmlFor="sigma_d">Desviación estándar de la demanda</Label>
+                  <Input
+                    id="sigma_d"
+                    name="sigma_d"
+                    type="number"
+                    value={params.sigma_d}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="L">Tiempo de entrega (días)</Label>
+                  <Input id="L" name="L" type="number" value={params.L} onChange={handleInputChange} />
+                </div>
+
+                <div>
+                  <Label htmlFor="C">Costo por unidad</Label>
+                  <Input id="C" name="C" type="number" value={params.C} onChange={handleInputChange} />
+                </div>
+
+                <div>
+                  <Label htmlFor="H">Costo anual por mantener inventario (20% de C)</Label>
+                  <Input id="H" name="H" type="number" value={params.H} disabled />
+                </div>
+
+                <div>
+                  <Label htmlFor="S">Costo fijo por pedido</Label>
+                  <Input id="S" name="S" type="number" value={params.S} onChange={handleInputChange} />
+                </div>
+
+                <div>
+                  <Label htmlFor="serviceLevel">Nivel de servicio</Label>
+                  <select
+                    id="serviceLevel"
+                    name="serviceLevel"
+                    className="w-full p-2 border rounded"
+                    value={params.serviceLevel}
+                    onChange={(e) =>
+                      setParams((prev) => ({
+                        ...prev,
+                        serviceLevel: Number.parseFloat(e.target.value),
+                      }))
+                    }
+                  >
+                    <option value="0.90">90%</option>
+                    <option value="0.95">95%</option>
+                    <option value="0.98">98%</option>
+                    <option value="0.99">99%</option>
+                  </select>
+                </div>
+
+                <Alert className="mt-6">
+                  <InfoIcon className="h-4 w-4" />
+                  <AlertTitle>Información</AlertTitle>
+                  <AlertDescription>
+                    El costo de mantener inventario (H) se calcula automáticamente como el 20% del costo por unidad (C).
+                  </AlertDescription>
+                </Alert>
+
+                <Button className="w-full mt-6" onClick={() => setSheetOpen(false)}>
+                  Aplicar Cambios
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+      </div>
+
+      {results ? (
+        <div className="space-y-8">
+          {/* Cards de resultados en la parte superior */}
+          <ResultsSummary results={results} params={params} />
+
+          {/* Gráficas en la parte inferior, una al lado de la otra */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Costo Total vs Cantidad de Pedido (Q)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CostChart D={results.D} S={params.S} H={params.H} Q={results.Q} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Simulación del Inventario Diario</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InventorySimulation simulation={results.simulation} R={results.R} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-lg text-gray-500">Cargando resultados...</p>
+        </div>
+      )}
+    </main>
+  )
 }

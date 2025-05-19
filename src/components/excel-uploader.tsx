@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import type React from "react"
 
@@ -8,7 +8,7 @@ import { FileUp, AlertCircle, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import * as XLSX from "xlsx"
 
-interface ExcelData {
+export interface ExcelData {
   dias?: number
   mu_d?: number
   sigma_d?: number
@@ -19,7 +19,7 @@ interface ExcelData {
 }
 
 interface ExcelUploaderProps {
-  onDataLoaded: (data: ExcelData) => void
+  onDataLoaded?: (data: ExcelData) => void
 }
 
 export function ExcelUploader({ onDataLoaded }: ExcelUploaderProps) {
@@ -38,7 +38,7 @@ export function ExcelUploader({ onDataLoaded }: ExcelUploaderProps) {
     try {
       const data = await readExcelFile(file)
       if (data) {
-        onDataLoaded(data)
+        onDataLoaded?.(data)
         setSuccess(`Datos cargados correctamente desde "${file.name}"`)
       }
     } catch (err) {
@@ -67,7 +67,7 @@ export function ExcelUploader({ onDataLoaded }: ExcelUploaderProps) {
           const worksheet = workbook.Sheets[firstSheetName]
 
           // Convertir a JSON
-          const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 })
+          const jsonData = XLSX.utils.sheet_to_json<[string, object]>(worksheet, { header: 1 })
 
           // Procesar los datos
           const excelData: ExcelData = {}
@@ -125,7 +125,7 @@ export function ExcelUploader({ onDataLoaded }: ExcelUploaderProps) {
           }
 
           resolve(excelData)
-        } catch (err) {
+        } catch {
           reject(new Error("Error al procesar el archivo Excel"))
         }
       }

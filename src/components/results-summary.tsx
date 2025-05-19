@@ -33,7 +33,7 @@ interface ResultsSummaryProps {
   }
 }
 
-export function ResultsSummary({ results, params }: ResultsSummaryProps) {
+export function ResultsSummary({ results }: ResultsSummaryProps) {
   const inventarioPromedio =
     results.simulation.inventario.reduce((a, b) => a + b, 0) / results.simulation.inventario.length
   const stockMinimo = Math.min(...results.simulation.inventario)

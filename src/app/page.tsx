@@ -8,13 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { InfoIcon, SlidersHorizontal, FileUp } from "lucide-react"
+import { InfoIcon, SlidersHorizontal } from "lucide-react"
 import { CostChart } from "@/components/cost-chart"
 import { InventorySimulation } from "@/components/inventory-simulation"
 import { ResultsSummary } from "@/components/results-summary"
-import { calculateEOQ, calculateReorderPoint, simulateInventory } from "@/lib/inventory-calculations"
+import { calculateResults } from "@/lib/calculations/inventory-calculations"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { ExcelUploader } from "@/components/excel-uploader"
+import { ExcelData, ExcelUploader } from "@/components/excel-uploader"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { InventoryResults } from "@/types/calculate-results"
+
 
 export default function InventoryManagementApp() {
   const [params, setParams] = useState({
@@ -28,7 +31,7 @@ export default function InventoryManagementApp() {
     L: 1,
   })
 
-  const [results, setResults] = useState<any>(null)
+  const [results, setResults] = useState<InventoryResults | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   // Actualizar resultados automáticamente cuando cambian los parámetros
@@ -44,8 +47,9 @@ export default function InventoryManagementApp() {
       return // Evitar cálculos duplicados, ya que este cambio desencadenará otro useEffect
     }
 
-    calculateResults()
+    setResults(calculateResults(params))
   }, [params])
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -55,41 +59,8 @@ export default function InventoryManagementApp() {
     }))
   }
 
-  const calculateResults = () => {
-    // Calcular EOQ
-    const D = params.mu_d * params.dias
-    const Q = calculateEOQ(D, params.S, params.H)
 
-    // Calcular punto de reorden
-    const Z = calculateZScore(params.serviceLevel)
-    const R = calculateReorderPoint(params.mu_d, params.L, params.sigma_d, Z)
-
-    // Simular inventario
-    const simulation = simulateInventory(params.dias, params.mu_d, params.sigma_d, Q, R)
-
-    setResults({
-      Q,
-      R,
-      D,
-      Z,
-      simulation,
-    })
-  }
-
-  const calculateZScore = (serviceLevel: number) => {
-    // Aproximación del Z-score para niveles de servicio comunes
-    const zScores: Record<string, number> = {
-      "0.90": 1.28,
-      "0.95": 1.65,
-      "0.98": 2.05,
-      "0.99": 2.33,
-    }
-
-    const key = serviceLevel.toString()
-    return zScores[key] || 1.65 // Default a 95% si no se encuentra
-  }
-
-  const handleExcelDataLoaded = (data: any) => {
+  const handleExcelDataLoaded = (data: ExcelData) => {
     // Actualizar los parámetros con los datos del Excel
     setParams((prev) => ({
       ...prev,
@@ -107,23 +78,6 @@ export default function InventoryManagementApp() {
         <h1 className="text-3xl font-bold">Gestión de Inventario - Modelo EOQ</h1>
 
         <div className="flex gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <FileUp className="h-4 w-4" />
-                Cargar Excel
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Cargar datos desde Excel</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6">
-                <ExcelUploader onDataLoaded={handleExcelDataLoaded} />
-              </div>
-            </SheetContent>
-          </Sheet>
-
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
@@ -136,81 +90,93 @@ export default function InventoryManagementApp() {
                 <SheetTitle>Configuración del Modelo</SheetTitle>
               </SheetHeader>
 
-              <div className="space-y-4 mt-6">
-                <div>
-                  <Label htmlFor="dias">Días en el periodo</Label>
-                  <Input id="dias" name="dias" type="number" value={params.dias} onChange={handleInputChange} />
-                </div>
+              <Tabs defaultValue="manual" className="mt-6">
+                <TabsList className="grid grid-cols-2 mb-4">
+                  <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
+                  <TabsTrigger value="excel">Cargar Excel</TabsTrigger>
+                </TabsList>
 
-                <div>
-                  <Label htmlFor="mu_d">Demanda diaria promedio</Label>
-                  <Input id="mu_d" name="mu_d" type="number" value={params.mu_d} onChange={handleInputChange} />
-                </div>
+                <TabsContent value="manual" className="space-y-4">
+                  <div>
+                    <Label htmlFor="dias">Días en el periodo</Label>
+                    <Input id="dias" name="dias" type="number" value={params.dias} onChange={handleInputChange} />
+                  </div>
 
-                <div>
-                  <Label htmlFor="sigma_d">Desviación estándar de la demanda</Label>
-                  <Input
-                    id="sigma_d"
-                    name="sigma_d"
-                    type="number"
-                    value={params.sigma_d}
-                    onChange={handleInputChange}
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="mu_d">Demanda diaria promedio</Label>
+                    <Input id="mu_d" name="mu_d" type="number" value={params.mu_d} onChange={handleInputChange} />
+                  </div>
 
-                <div>
-                  <Label htmlFor="L">Tiempo de entrega (días)</Label>
-                  <Input id="L" name="L" type="number" value={params.L} onChange={handleInputChange} />
-                </div>
+                  <div>
+                    <Label htmlFor="sigma_d">Desviación estándar de la demanda</Label>
+                    <Input
+                      id="sigma_d"
+                      name="sigma_d"
+                      type="number"
+                      value={params.sigma_d}
+                      onChange={handleInputChange}
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="C">Costo por unidad</Label>
-                  <Input id="C" name="C" type="number" value={params.C} onChange={handleInputChange} />
-                </div>
+                  <div>
+                    <Label htmlFor="L">Tiempo de entrega (días)</Label>
+                    <Input id="L" name="L" type="number" value={params.L} onChange={handleInputChange} />
+                  </div>
 
-                <div>
-                  <Label htmlFor="H">Costo anual por mantener inventario (20% de C)</Label>
-                  <Input id="H" name="H" type="number" value={params.H} disabled />
-                </div>
+                  <div>
+                    <Label htmlFor="C">Costo por unidad</Label>
+                    <Input id="C" name="C" type="number" value={params.C} onChange={handleInputChange} />
+                  </div>
 
-                <div>
-                  <Label htmlFor="S">Costo fijo por pedido</Label>
-                  <Input id="S" name="S" type="number" value={params.S} onChange={handleInputChange} />
-                </div>
+                  <div>
+                    <Label htmlFor="H">Costo anual por mantener inventario (20% de C)</Label>
+                    <Input id="H" name="H" type="number" value={params.H} disabled />
+                  </div>
 
-                <div>
-                  <Label htmlFor="serviceLevel">Nivel de servicio</Label>
-                  <select
-                    id="serviceLevel"
-                    name="serviceLevel"
-                    className="w-full p-2 border rounded"
-                    value={params.serviceLevel}
-                    onChange={(e) =>
-                      setParams((prev) => ({
-                        ...prev,
-                        serviceLevel: Number.parseFloat(e.target.value),
-                      }))
-                    }
-                  >
-                    <option value="0.90">90%</option>
-                    <option value="0.95">95%</option>
-                    <option value="0.98">98%</option>
-                    <option value="0.99">99%</option>
-                  </select>
-                </div>
+                  <div>
+                    <Label htmlFor="S">Costo fijo por pedido</Label>
+                    <Input id="S" name="S" type="number" value={params.S} onChange={handleInputChange} />
+                  </div>
 
-                <Alert className="mt-6">
-                  <InfoIcon className="h-4 w-4" />
-                  <AlertTitle>Información</AlertTitle>
-                  <AlertDescription>
-                    El costo de mantener inventario (H) se calcula automáticamente como el 20% del costo por unidad (C).
-                  </AlertDescription>
-                </Alert>
+                  <div>
+                    <Label htmlFor="serviceLevel">Nivel de servicio</Label>
+                    <select
+                      id="serviceLevel"
+                      name="serviceLevel"
+                      className="w-full p-2 border rounded"
+                      value={params.serviceLevel}
+                      onChange={(e) =>
+                        setParams((prev) => ({
+                          ...prev,
+                          serviceLevel: Number.parseFloat(e.target.value),
+                        }))
+                      }
+                    >
+                      <option value="0.90">90%</option>
+                      <option value="0.95">95%</option>
+                      <option value="0.98">98%</option>
+                      <option value="0.99">99%</option>
+                    </select>
+                  </div>
 
-                <Button className="w-full mt-6" onClick={() => setSheetOpen(false)}>
-                  Aplicar Cambios
-                </Button>
-              </div>
+                  <Alert className="mt-6">
+                    <InfoIcon className="h-4 w-4" />
+                    <AlertTitle>Información</AlertTitle>
+                    <AlertDescription>
+                      El costo de mantener inventario (H) se calcula automáticamente como el 20% del costo por unidad
+                      (C).
+                    </AlertDescription>
+                  </Alert>
+                </TabsContent>
+
+                <TabsContent value="excel">
+                  <ExcelUploader onDataLoaded={handleExcelDataLoaded} />
+                </TabsContent>
+              </Tabs>
+
+              <Button className="w-full mt-6" onClick={() => setSheetOpen(false)}>
+                Aplicar Cambios
+              </Button>
             </SheetContent>
           </Sheet>
         </div>

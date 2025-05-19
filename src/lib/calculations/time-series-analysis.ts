@@ -1,4 +1,6 @@
-export function analyzeTimeSeries(data: number[]) {
+import { TimeSeriesAnalysisResult } from "../../types/analysis-results"
+
+export function analyzeTimeSeries(data: number[]): TimeSeriesAnalysisResult {
   // Dividir los datos en conjuntos de entrenamiento y prueba
   const splitIndex = Math.floor(data.length * 0.7)
   const trainingData = data.slice(0, splitIndex)
@@ -414,7 +416,7 @@ function chiSquareCDF(x: number, df: number) {
   // Aproximación muy simplificada de la función de distribución acumulativa chi-cuadrado
   if (x <= 0) return 0
   
-  const k = df / 2
+  // const k = df / 2
   const z = x / 2
   
   // Para df=1, usamos una aproximación basada en la normal
@@ -427,39 +429,5 @@ function chiSquareCDF(x: number, df: number) {
     return 1 - Math.exp(-z);
   }
 
-// Para otros Características implementadas:
-
-// 1. **Barra lateral de navegación**:
-//    - Diseñada con el componente shadcn/ui sidebar [^1]
-//    - Permite navegar entre la gestión de inventario y el análisis de series temporales
-//    - Incluye iconos representativos para cada sección
-//    - Se puede colapsar para maximizar el espacio de trabajo
-
-// 2. **Nueva ruta para análisis de series temporales** (`/time-series`):
-//    - Implementa la funcionalidad de análisis de series temporales basada en el código R proporcionado
-//    - Permite cargar datos desde archivos Excel, CSV o TXT
-//    - Realiza análisis estadísticos similares a los del código R original
-
-// 3. **Componentes para el análisis de series temporales**:
-//    - `TimeSeriesChart`: Visualización de la serie temporal
-//    - `TimeSeriesResults`: Muestra resultados del análisis (estacionariedad, tendencia, estacionalidad)
-//    - `TimeSeriesForecasting`: Implementa pronósticos con suavización exponencial
-//    - `TimeSeriesResiduals`: Análisis de residuos del modelo
-
-// 4. **Biblioteca de análisis estadístico**:
-//    - Implementé funciones equivalentes a las de R para análisis de series temporales
-//    - Incluye pruebas de estacionariedad (ADF), detección de tendencia y estacionalidad
-//    - Implementa suavización exponencial para pronósticos
-//    - Realiza análisis de residuos (normalidad, autocorrelación, homocedasticidad)
-
-// ### Cómo usar la nueva funcionalidad:
-
-// 1. Utiliza la barra lateral para navegar entre las diferentes secciones de la aplicación
-// 2. En la sección de análisis de series temporales, carga un archivo con tus datos
-// 3. Explora las diferentes pestañas para ver los resultados del análisis:
-//    - Visualización: Gráfico de la serie temporal
-//    - Análisis: Resultados de pruebas estadísticas y componentes de la serie
-//    - Pronóstico: Visualización y métricas del modelo de pronóstico
-//    - Residuos: Análisis de los residuos del modelo
-
-// La implementación es una versión JavaScript/TypeScript equivalente al código R proporcionado, adaptada para funcionar en un entorno web con Next.js.
+  return 0
+}

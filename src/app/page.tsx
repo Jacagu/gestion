@@ -75,7 +75,7 @@ export default function InventoryManagementApp() {
   return (
     <main className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Gestión de Inventario - Modelo EOQ</h1>
+        <h1 className="text-3xl font-bold">Gestión de Inventario - Modelo QR</h1>
 
         <div className="flex gap-2">
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
